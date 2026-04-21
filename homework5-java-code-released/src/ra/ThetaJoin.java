@@ -64,5 +64,4 @@ public class ThetaJoin<A,B> implements Query<Or<A,B>,Pair<A,B>> {
 	public void end(Sink<Pair<A,B>> sink) {
 		sink.end();
 	}
-	
 }

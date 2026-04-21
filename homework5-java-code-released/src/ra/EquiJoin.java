@@ -42,5 +42,4 @@ public class EquiJoin<A,B,T> implements Query<Or<A,B>,Pair<A,B>> {
 	public void end(Sink<Pair<A,B>> sink) {
 		impl.end(sink);
 	}
-	
 }

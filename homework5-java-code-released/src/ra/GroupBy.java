@@ -56,6 +56,5 @@ public class GroupBy<K,A,B> implements Query<Pair<K,A>,Pair<K,B>> {
 			sink.next(Pair.from(e.getKey(), e.getValue()));
 		}
 		sink.end();
-	}
-	
+	}	
 }
