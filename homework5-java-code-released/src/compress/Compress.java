@@ -20,7 +20,7 @@ public class Compress {
 	public static Query<Integer,Integer> delta() {
 		// We need to store an anchor value for delta, so SWindow2 default implementation is not suitable (as it only
 		// starts emitting when 2 values in window) so we need to implement our own.
-		return new Query<>() {
+		return new Query<Integer,Integer>() {
             private int prev;
 
             @Override
@@ -64,7 +64,7 @@ public class Compress {
 	}
 
 	public static Query<Integer,Integer> pack() {
-		return new Query<>() {
+		return new Query<Integer,Integer>() {
 			private Deque<Integer> blockQueue = new LinkedList<>();
 			private Deque<Byte> emitConstructionQueue = new LinkedList<>();
 			private byte partiallyEncodedByte = 0;
@@ -180,7 +180,7 @@ public class Compress {
 	}
 
 	public static Query<Integer,Integer> unpack() {
-		return new Query<>() {
+		return new Query<Integer,Integer>() {
 			private boolean eosSeen = false;
 
 			private final Deque<Byte> byteQueue = new LinkedList<>();
