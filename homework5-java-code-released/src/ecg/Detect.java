@@ -19,27 +19,59 @@ public class Detect implements Query<VTL,Long> {
 
 	// Choose this to be two times the average length
 	// over the entire signal.
-	private static final double THRESHOLD = 0.0; // TODO
+	private static final double THRESHOLD = 255.30448862892598;
 
-	// TODO
+	private static final int SEARCH_WINDOW = 40;
+	private static final int REFRACTORY_PERIOD = 72;
+
+	private boolean searching;
+	private int samplesInWindow;
+	private VTL candidatePeak;
+	private long lastPeakTs;
 
 	public Detect() {
-		// TODO
+		searching = false;
+		samplesInWindow = 0;
+		candidatePeak = null;
+		lastPeakTs = Long.MIN_VALUE / 2;
 	}
 
 	@Override
 	public void start(Sink<Long> sink) {
-		// TODO
+		searching = false;
+		samplesInWindow = 0;
+		candidatePeak = null;
+		lastPeakTs = Long.MIN_VALUE / 2;
 	}
 
 	@Override
 	public void next(VTL item, Sink<Long> sink) {
-		// TODO
+		if (searching) {
+			if (candidatePeak == null || item.v > candidatePeak.v) {
+				candidatePeak = item;
+			}
+
+			samplesInWindow += 1;
+			if (samplesInWindow >= SEARCH_WINDOW) {
+				sink.next(candidatePeak.ts);
+				lastPeakTs = candidatePeak.ts;
+				searching = false;
+				samplesInWindow = 0;
+				candidatePeak = null;
+			}
+			return;
+		}
+
+		if (item.ts > lastPeakTs + REFRACTORY_PERIOD && item.l > THRESHOLD) {
+			searching = true;
+			samplesInWindow = 1;
+			candidatePeak = item;
+		}
 	}
 
 	@Override
 	public void end(Sink<Long> sink) {
-		// TODO
+		sink.end();
 	}
 	
 }
