@@ -7,7 +7,14 @@ const MEM_SIZE: usize = 900; // DO NOT CHANGE
 //
 // We have to make sure that we do not use more than `MEM_SIZE`
 // bytes of memory for the state of our streaming algorithm.
-//
+
+
+const NUM_BUCKETS: usize = 49;       // B - 1 stored full buckets
+const BUCKET_SIZE: usize = WND_SIZE / (NUM_BUCKETS + 1); 
+
+const OFF_CUR_SUM: usize = 2 * NUM_BUCKETS;       
+const OFF_CUR_COUNT: usize = OFF_CUR_SUM + 2;    
+const OFF_RING_HEAD: usize = OFF_CUR_COUNT + 1;  
 
 // State of the streaming algorithm
 pub struct WndApx {
@@ -15,8 +22,6 @@ pub struct WndApx {
 	ram: [u8; MEM_SIZE], // memory contents
 	// DO NOT MAKE ANY CHANGE HERE
 }
-
-// TODO: If needed, you can add functions here.
 
 impl WndApx {
 
@@ -28,24 +33,75 @@ impl WndApx {
 		// DO NOT MAKE ANY CHANGE HERE
 	}
 
-	// TODO: If needed, you can add methods here.
+	fn read_u16(&self, off: usize) -> u16 {
+		u16::from_le_bytes([self.ram[off], self.ram[off + 1]])
+	}
+
+	fn write_u16(&mut self, off: usize, v: u16) {
+		let b = v.to_le_bytes();
+		self.ram[off] = b[0];
+		self.ram[off + 1] = b[1];
+	}
+
+	fn get_bucket(&self, i: usize) -> u16 {
+		self.read_u16(2 * i)
+	}
+
+	fn set_bucket(&mut self, i: usize, v: u16) {
+		self.write_u16(2 * i, v);
+	}
+
+	fn current_sum(&self) -> u16 { self.read_u16(OFF_CUR_SUM) }
+	fn set_current_sum(&mut self, v: u16) { self.write_u16(OFF_CUR_SUM, v); }
+
+	fn current_count(&self) -> u8 { self.ram[OFF_CUR_COUNT] }
+	fn set_current_count(&mut self, v: u8) { self.ram[OFF_CUR_COUNT] = v; }
+
+	fn ring_head(&self) -> u8 { self.ram[OFF_RING_HEAD] }
+	fn set_ring_head(&mut self, v: u8) { self.ram[OFF_RING_HEAD] = v; }
 
 }
 
 impl Query for WndApx {
 
 	fn start<S: Sink>(&mut self, _sink: &mut S) {
-		todo!()
+		self.ram = [0; MEM_SIZE];
 	}
 
 	fn next<S: Sink>(&mut self, item: u16, sink: &mut S) {
 		assert!(item < LIMIT_SAMPLE);
 
-		todo!()
+		let mut cur_sum = self.current_sum();
+		let mut cur_count = self.current_count();
+
+		cur_sum += item;
+		cur_count += 1;
+
+		if (cur_count as usize) == BUCKET_SIZE {
+			let head = self.ring_head() as usize;
+			self.set_bucket(head, cur_sum);
+			let new_head = (head + 1) % NUM_BUCKETS;
+			self.set_ring_head(new_head as u8);
+			cur_sum = 0;
+			cur_count = 0;
+		}
+
+		self.set_current_sum(cur_sum);
+		self.set_current_count(cur_count);
+
+		let mut total: u32 = u32::from(cur_sum);
+		for i in 0..NUM_BUCKETS {
+			total += u32::from(self.get_bucket(i));
+		}
+
+		let wnd = WND_SIZE as u32;
+		let q = u16::try_from(total / wnd).unwrap();
+		let r = u16::try_from(total % wnd).unwrap();
+		sink.next((q, r));
 	}
 
 	fn end<S: Sink>(&mut self, sink: &mut S) {
-		todo!()
+		sink.end();
 	}
 
 }
@@ -117,7 +173,7 @@ mod tests {
 		println!("maximum relative error = {}", max_rel_error);
 		println!();
 	}
-	
+
 	#[test]
 	fn test_wnd_apx_2() {
 		println!("\n");
@@ -173,7 +229,7 @@ mod tests {
 		println!("maximum relative error = {:.2}", max_rel_error);
 		println!();
 	}
-	
+
 	#[test]
 	fn test_wnd_apx_1() {
 		println!("\n");
@@ -196,5 +252,5 @@ mod tests {
 		println!("size of {} = {} bytes", name, size);
 		println!();
 	}
-	
+
 }
